@@ -84,7 +84,7 @@ class ShowStatCard extends StatelessWidget {
                 text: ' / $total',
                 style: const TextStyle(
                   color: Colors.grey,
-                  fontWeight: FontWeight.bold,
+                  fontWeight: FontWeight.w700,
                   fontSize: 12,
                 ),
               ),

@@ -1,4 +1,7 @@
+import 'dart:developer';
+
 import 'package:badges/badges.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:fitness_dashboard/components/stat_cardd.dart';
 import 'package:fitness_dashboard/components/summary.dart';
 import 'package:fitness_dashboard/constants.dart';
@@ -13,17 +16,20 @@ class Dashboard extends StatefulWidget {
 }
 
 class _DashboardState extends State<Dashboard> {
+  FirebaseFirestore firestore = FirebaseFirestore.instance;
+
   String username = 'Julia Vins';
   int notifyCount = 23;
   int workTime = 165;
   double burnCal = 500;
   int step = 5200;
+  var user;
   Map<String, dynamic> stepsSet = {'start': 0, 'end': 6000};
-  List<Map<String, dynamic>> summary = [
-    {'titleName': 'distance', 'value': 8500, 'unit': 'm'},
-    {'titleName': 'calroies', 'value': 259, 'unit': 'cal'},
-    {'titleName': 'heart rate', 'value': 103, 'unit': 'bpm'},
-  ];
+  // List<Map<String, dynamic>> summary = [
+  //   {'titleName': 'distance', 'value': 8500, 'unit': 'm'},
+  //   {'titleName': 'calroies', 'value': 259, 'unit': 'cal'},
+  //   {'titleName': 'heart rate', 'value': 103, 'unit': 'bpm'},
+  // ];
   List<Map<String, dynamic>> stat = [
     {
       'titleName': 'Carbs',
@@ -49,6 +55,48 @@ class _DashboardState extends State<Dashboard> {
     // {'titleName': 'calroies', 'value': 259, 'unit': 'cal'},
     // {'titleName': 'heart rate', 'value': 103, 'unit': 'bpm'},
   ];
+
+  Future userInfo() async {
+    final data =
+        await firestore.collection('user').doc('6202037211_users').get();
+    setState(() {
+      user = data;
+    });
+    // inspect(data['fullname']);
+  }
+
+  // Future userBmi() async {
+  //   final data = await firestore
+  //       .collection('Ondiet_bmi')
+  //       .where('userId', isEqualTo: '6202037211_users')
+  //       .get();
+  //   // .then((value) => inspect(value))
+  //   // .catchError((err) => print(err));
+  //   // setState(() {
+  //   //   user = data;
+  //   // });
+  //   inspect(data);
+  // }
+
+  Future updateStep(step) async {
+    print(step);
+    return firestore
+        .collection('user')
+        .doc('6202037211_users')
+        .update({'step': step})
+        .then((value) => print('update step successed'))
+        .catchError((err) => print('Failed to update setep $err'));
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    // summary[0]['value'] = 5000;
+    // summary[1]['value'] = 500;
+    // summary[2]['value'] = 80;
+    userInfo();
+    // userBmi();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -77,20 +125,11 @@ class _DashboardState extends State<Dashboard> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: <Widget>[
                 Text(
-                  username,
+                  '${user == null ? '' : user['fullname']}',
                   style: const TextStyle(
                     color: colorText,
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
                   ),
                 ),
-                // Text(
-                //   'Feb 25, 2018',
-                //   style: TextStyle(
-                //     color: colorText,
-                //     fontSize: 12,
-                //   ),
-                // ),
               ],
             ),
           ],
@@ -108,174 +147,293 @@ class _DashboardState extends State<Dashboard> {
           )
         ],
       ),
-      body: SingleChildScrollView(
-        child: Padding(
-          padding: const EdgeInsets.all(30),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              Container(
-                width: 70,
-                height: 70,
-                padding: const EdgeInsets.all(15),
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(100),
-                  color: Theme.of(context).primaryColor.withAlpha(50),
-                ),
-                child: Image.asset(
-                  'assets/images/shoe.png',
-                  width: 60,
-                ),
-              ),
-              SizedBox(
-                height: size.height * 0.02,
-              ),
-              Text(
-                '$step',
-                style: TextStyle(
-                  color: Theme.of(context).primaryColor,
-                  fontSize: 80,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              SizedBox(
-                height: size.height * 0.02,
-              ),
-              Container(
-                width: size.width * 0.7,
-                child: Column(
-                  children: <Widget>[
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: <Widget>[
-                        Text(
-                          '${stepsSet['start']} Steps'.toUpperCase(),
-                          style: const TextStyle(
-                            color: Colors.grey,
+      body: StreamBuilder(
+        stream: firestore
+            .collection('Ondiet_manu')
+            .where('userId', isEqualTo: '6202037211_users')
+            .snapshots(),
+        builder: (context, AsyncSnapshot snapshot) {
+          // inspect(data.docs[0]['kcal']);
+          if (snapshot.hasError) {
+            return const Text('Something went wrong');
+          }
+          if (!snapshot.hasData) {
+            return const Center(
+                child: CircularProgressIndicator(color: colorPrimary));
+          }
+          final data = snapshot.data;
+          double drink = 0;
+          double food = 0;
+          double cal = 0;
+
+          // print(data.docs.length);
+          for (var item in data.docs) {
+            if (item['drinks'] != '') {
+              drink += 1;
+            }
+            if (item['foods'] != '') {
+              food += 1;
+            }
+            cal += double.parse(item['kcal']);
+            // inspect(item['kcal']);
+          }
+          // print('drink $drink and food $food');
+          return StreamBuilder(
+              stream: firestore
+                  .collection('user')
+                  .doc('6202037211_users')
+                  .snapshots(),
+              builder: (context, AsyncSnapshot snapshot) {
+                if (!snapshot.hasData) {
+                  return const Text('...');
+                }
+                final data = snapshot.data;
+                // inspect('121212');
+                return GestureDetector(
+                  onTapUp: (TapUpDetails tapDetail) {
+                    if (tapDetail.globalPosition.dx > size.width / 2) {
+                      // Tap Right ++
+                      updateStep(data['step'] + 1);
+                      // setState(() {
+                      //   step++;
+                      // });
+                    } else if (tapDetail.globalPosition.dx < size.width / 2) {
+                      // Tap Left --
+                      updateStep(data['step'] - 1);
+                      // setState(() {
+                      //   step--;
+                      // });
+                    }
+                  },
+                  onHorizontalDragEnd: (DragEndDetails details) {
+                    if (details.primaryVelocity! > 0) {
+                      // User swiped Right ++
+                      updateStep(data['step'] + 1);
+                      // print('R=>L');
+                      // setState(() {
+                      //   step++;
+                      // });
+                    } else if (details.primaryVelocity! < 0) {
+                      // User swiped Left --
+                      updateStep(data['step'] - 1);
+                      // print('L<=R');
+                      // setState(() {
+                      //   step--;
+                      // });
+                    }
+                  },
+                  child: SingleChildScrollView(
+                    child: Padding(
+                      padding: const EdgeInsets.all(30),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          Container(
+                            width: 70,
+                            height: 70,
+                            padding: const EdgeInsets.all(15),
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(100),
+                              color:
+                                  Theme.of(context).primaryColor.withAlpha(50),
+                            ),
+                            child: Image.asset(
+                              'assets/images/shoe.png',
+                              width: 60,
+                            ),
                           ),
-                        ),
-                        Text(
-                          '${stepsSet['end']} Steps'.toUpperCase(),
-                          style: const TextStyle(
-                            color: Colors.grey,
+                          SizedBox(
+                            height: size.height * 0.02,
                           ),
-                        ),
-                      ],
-                    ),
-                    LinearPercentIndicator(
-                      lineHeight: 8.0,
-                      percent: step / stepsSet['end'],
-                      linearStrokeCap: LinearStrokeCap.roundAll,
-                      backgroundColor: colorSwatch.withAlpha(30),
-                      progressColor: Theme.of(context).primaryColor,
-                    ),
-                  ],
-                ),
-              ),
-              SizedBox(
-                height: size.height * 0.05,
-              ),
-              Text(
-                'Steps Taken'.toUpperCase(),
-                style: const TextStyle(
-                  color: colorText,
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              Text(
-                'You walked $workTime min today',
-                style: const TextStyle(
-                  color: colorText,
-                  fontSize: 16,
-                ),
-              ),
-              SizedBox(
-                height: size.height * 0.05,
-              ),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: <Widget>[
-                  Expanded(
-                    flex: 3,
-                    child: Summary(
-                        titleName: '${summary[0]['titleName']}',
-                        value: summary[0]['value'],
-                        unit: '${summary[0]['unit']}'),
-                  ),
-                  Expanded(
-                    flex: 3,
-                    child: Summary(
-                        titleName: '${summary[1]['titleName']}',
-                        value: summary[1]['value'],
-                        unit: '${summary[1]['unit']}'),
-                  ),
-                  Expanded(
-                    flex: 3,
-                    child: Summary(
-                        titleName: '${summary[2]['titleName']}',
-                        value: summary[2]['value'],
-                        unit: '${summary[2]['unit']}'),
-                  ),
-                ],
-              ),
-              SizedBox(
-                height: size.height * 0.05,
-              ),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: <Widget>[
-                  const Text(
-                    'DIET PROGRESS',
-                    style: TextStyle(
-                      color: colorText,
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  Row(
-                    children: <Widget>[
-                      Image.asset(
-                        'assets/images/down_orange.png',
-                        width: 20,
+                          Text(
+                            '${data['step']}',
+                            style: TextStyle(
+                              color: Theme.of(context).primaryColor,
+                              fontSize: 80,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          SizedBox(
+                            height: size.height * 0.02,
+                          ),
+                          Container(
+                            width: size.width * 0.7,
+                            child: Column(
+                              children: <Widget>[
+                                Row(
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
+                                  children: <Widget>[
+                                    Text(
+                                      '${stepsSet['start']} Steps'
+                                          .toUpperCase(),
+                                      style: const TextStyle(
+                                        color: Colors.grey,
+                                      ),
+                                    ),
+                                    Text(
+                                      '${stepsSet['end']} Steps'.toUpperCase(),
+                                      style: const TextStyle(
+                                        color: Colors.grey,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                LinearPercentIndicator(
+                                  lineHeight: 8.0,
+                                  percent: step / stepsSet['end'],
+                                  linearStrokeCap: LinearStrokeCap.roundAll,
+                                  backgroundColor: colorSwatch.withAlpha(30),
+                                  progressColor: Theme.of(context).primaryColor,
+                                ),
+                              ],
+                            ),
+                          ),
+                          SizedBox(
+                            height: size.height * 0.05,
+                          ),
+                          Text(
+                            'Steps Taken'.toUpperCase(),
+                            style: const TextStyle(
+                              color: colorText,
+                              fontSize: 24,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          Text(
+                            'You walked $workTime min today',
+                            style: const TextStyle(
+                              color: colorText,
+                              fontSize: 16,
+                            ),
+                          ),
+                          SizedBox(
+                            height: size.height * 0.05,
+                          ),
+                          StreamBuilder(
+                              stream: firestore
+                                  .collection('Ondiet_bmi')
+                                  .where('userId',
+                                      isEqualTo: '6202037211_users')
+                                  .snapshots(),
+                              builder: (context, AsyncSnapshot snapshot) {
+                                if (!snapshot.hasData) {
+                                  return const Text('...');
+                                }
+                                final bmi = snapshot.data.docs;
+                                print(bmi.length);
+                                // inspect(bmi[0]['bmi']);
+                                return Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: <Widget>[
+                                    Expanded(
+                                      flex: 3,
+                                      child: Summary(
+                                          titleName: 'BMI',
+                                          value: bmi.length == 0
+                                              ? 0
+                                              : bmi[0]['bmi'],
+                                          unit: 'double'),
+                                    ),
+                                    Expanded(
+                                      flex: 3,
+                                      child: Summary(
+                                          titleName: 'foods',
+                                          value: food,
+                                          unit: 'int'),
+                                    ),
+                                    Expanded(
+                                      flex: 3,
+                                      child: Summary(
+                                          titleName: 'drinks',
+                                          value: drink,
+                                          unit: 'int'),
+                                    ),
+                                  ],
+                                );
+                              }),
+                          SizedBox(
+                            height: size.height * 0.05,
+                          ),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: const <Widget>[
+                              Text(
+                                'DIET PROGRESS',
+                                style: TextStyle(
+                                  color: colorText,
+                                  fontSize: 24,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                              // Row(
+                              //   children: <Widget>[
+                              //     Image.asset(
+                              //       'assets/images/down_orange.png',
+                              //       width: 20,
+                              //     ),
+                              //     SizedBox(
+                              //       height: size.height * 0.025,
+                              //     ),
+                              //     Text(
+                              //       '$burnCal Calories',
+                              //       style: const TextStyle(
+                              //         color: Colors.orange,
+                              //         fontWeight: FontWeight.w700,
+                              //       ),
+                              //     )
+                              //   ],
+                              // )
+                            ],
+                          ),
+                          Container(
+                            height: 250,
+                            padding: const EdgeInsets.fromLTRB(0, 15, 0, 15),
+                            child: ListView(
+                              // physics: const ClampingScrollPhysics(),
+                              // shrinkWrap: true,
+                              scrollDirection: Axis.horizontal,
+                              children: [
+                                ShowStatCard(
+                                  title: 'calories',
+                                  achieved: cal,
+                                  total: double.parse(data['totalCal']),
+                                  color: stat[0]['color'],
+                                  image: Image.asset(
+                                    '${stat[0]['image']}',
+                                    width: 20,
+                                  ),
+                                ),
+                                ShowStatCard(
+                                  title: 'Protien',
+                                  achieved: cal,
+                                  total: double.parse(data['totalCal']),
+                                  color: stat[1]['color'],
+                                  image: Image.asset(
+                                    '${stat[1]['image']}',
+                                    width: 20,
+                                  ),
+                                ),
+                                ShowStatCard(
+                                  title: 'Fats',
+                                  achieved: cal,
+                                  total: double.parse(data['totalCal']),
+                                  color: stat[2]['color'],
+                                  image: Image.asset(
+                                    '${stat[2]['image']}',
+                                    width: 20,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
                       ),
-                      SizedBox(
-                        height: size.height * 0.025,
-                      ),
-                      Text(
-                        '$burnCal Calories',
-                        style: const TextStyle(
-                          color: Colors.orange,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      )
-                    ],
-                  )
-                ],
-              ),
-              Container(
-                  height: 250,
-                  padding: const EdgeInsets.fromLTRB(0, 15, 0, 15),
-                  child: ListView.builder(
-                      physics: const ClampingScrollPhysics(),
-                      shrinkWrap: true,
-                      scrollDirection: Axis.horizontal,
-                      itemCount: stat.length,
-                      itemBuilder: (context, index) {
-                        return ShowStatCard(
-                          title: '${stat[index]['titleName']}',
-                          achieved: stat[index]['achieved'] as double,
-                          total: stat[index]['total'],
-                          color: stat[index]['color'],
-                          image: Image.asset(
-                            '${stat[index]['image']}',
-                            width: 20,
-                          ),
-                        );
-                      })),
-            ],
-          ),
-        ),
+                    ),
+                  ),
+                );
+              });
+        },
       ),
     );
   }

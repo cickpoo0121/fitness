@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 
 class Summary extends StatefulWidget {
   final String titleName;
-  final int value;
+  final double value;
   final String unit;
   const Summary(
       {Key? key,
@@ -26,27 +26,29 @@ class _SummaryState extends State<Summary> {
           widget.titleName.toUpperCase(),
           style: TextStyle(
             color: Theme.of(context).primaryColor,
-            fontWeight: FontWeight.bold,
+            fontWeight: FontWeight.w700,
           ),
         ),
         RichText(
           text: TextSpan(
             children: [
               TextSpan(
-                text: '${widget.value}',
+                text: widget.unit == 'double'
+                    ? widget.value.toStringAsFixed(2)
+                    : widget.value.toStringAsFixed(0),
                 style: const TextStyle(
                   fontSize: 20,
                   color: colorText,
-                  fontWeight: FontWeight.bold,
+                  fontWeight: FontWeight.w700,
                 ),
               ),
-              TextSpan(
-                text: ' ${widget.unit}',
-                style: const TextStyle(
-                  color: Colors.grey,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
+              // TextSpan(
+              //   text: ' ${widget.unit}',
+              //   style: const TextStyle(
+              //     color: Colors.grey,
+              //     fontWeight: FontWeight.w700,
+              //   ),
+              // ),
             ],
           ),
         ),
